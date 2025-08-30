@@ -11,8 +11,8 @@ from sentence_transformers import SentenceTransformer
 import re
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'edubridge-secret-key-2024'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:password@localhost/edubridge'
+app.config['SECRET_KEY'] = 'tutorlink-secret-key-2024'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tutorlink.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
