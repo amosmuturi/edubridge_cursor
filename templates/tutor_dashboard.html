@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutor Dashboard - EduBridge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>EduBridge</span>
+            </div>
+            <div class="nav-menu">
+                <span class="user-welcome">Welcome, {{ current_user.name }}!</span>
+                <a href="/logout" class="btn btn-outline">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="dashboard-main">
+        <div class="dashboard-container">
+            <!-- Stats Section -->
+            <section class="stats-section">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="tutorRating">0.0</h3>
+                            <p>Average Rating</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalSessions">0</h3>
+                            <p>Total Sessions</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="thisMonth">0</h3>
+                            <p>Sessions This Month</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalEarnings">$0</h3>
+                            <p>Total Earnings</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Profile Section -->
+            <section class="profile-section">
+                <div class="profile-container">
+                    <div class="profile-header">
+                        <h2>Your Profile</h2>
+                        <p>Keep your profile updated to attract more students</p>
+                    </div>
+
+                    <form id="tutorProfileForm" class="profile-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="subject">Subject/Subject Area *</label>
+                                <input type="text" id="subject" name="subject" placeholder="e.g., Mathematics, Physics, English Literature" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="pricePerHour">Price per Hour ($) *</label>
+                                <input type="number" id="pricePerHour" name="price_per_hour" min="10" max="200" step="5" placeholder="25" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="location">Location *</label>
+                                <input type="text" id="location" name="location" placeholder="e.g., New York, NY or Online" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="whatsappNumber">WhatsApp Number *</label>
+                                <input type="tel" id="whatsappNumber" name="whatsapp_number" placeholder="+1234567890" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="availability">Availability *</label>
+                            <textarea id="availability" name="availability" rows="3" placeholder="e.g., Weekdays 6-9 PM, Weekends 10 AM-2 PM" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="bio">Bio/About Me</label>
+                            <textarea id="bio" name="bio" rows="4" placeholder="Tell students about your teaching experience, qualifications, and teaching style..."></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                Save Profile
+                            </button>
+                            <button type="button" class="btn btn-outline" onclick="loadProfile()">
+                                <i class="fas fa-refresh"></i>
+                                Refresh
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Recent Connections Section -->
+            <section class="connections-section">
+                <div class="connections-container">
+                    <h2>Recent Student Connections</h2>
+                    <div id="connectionsList" class="connections-list">
+                        <!-- Connections will be loaded here -->
+                    </div>
+                    <div id="noConnections" class="no-connections" style="display: none;">
+                        <i class="fas fa-users"></i>
+                        <h3>No connections yet</h3>
+                        <p>Students will appear here once they connect with you.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tips Section -->
+            <section class="tips-section">
+                <div class="tips-container">
+                    <h2>Tips to Attract More Students</h2>
+                    <div class="tips-grid">
+                        <div class="tip-card">
+                            <div class="tip-icon">
+                                <i class="fas fa-camera"></i>
+                            </div>
+                            <h3>Complete Your Profile</h3>
+                            <p>Add a detailed bio, clear availability, and competitive pricing to stand out.</p>
+                        </div>
+                        <div class="tip-card">
+                            <div class="tip-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <h3>Be Responsive</h3>
+                            <p>Reply quickly to student inquiries to build trust and increase bookings.</p>
+                        </div>
+                        <div class="tip-card">
+                            <div class="tip-icon">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <h3>Maintain Quality</h3>
+                            <p>Deliver excellent sessions to earn positive reviews and recommendations.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/tutor_dashboard.js') }}"></script>
+</body>
+</html>

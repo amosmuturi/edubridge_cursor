@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - EduBridge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>EduBridge</span>
+            </div>
+            <div class="nav-menu">
+                <span class="user-welcome">Welcome, {{ current_user.name }}!</span>
+                <a href="/logout" class="btn btn-outline">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="dashboard-main">
+        <div class="dashboard-container">
+            <!-- Search Section -->
+            <section class="search-section">
+                <div class="search-container">
+                    <h1>Find Your Perfect Tutor</h1>
+                    <p>Search by subject, location, or describe what you need help with</p>
+                    
+                    <div class="search-form">
+                        <div class="search-inputs">
+                            <input type="text" id="searchQuery" placeholder="What do you need help with? (e.g., calculus, essay writing)">
+                            <input type="text" id="searchSubject" placeholder="Subject (optional)">
+                            <input type="text" id="searchLocation" placeholder="Location (optional)">
+                        </div>
+                        <button class="btn btn-primary" onclick="searchTutors()">
+                            <i class="fas fa-search"></i>
+                            Search Tutors
+                        </button>
+                    </div>
+
+                    <div class="popular-subjects">
+                        <h3>Popular Subjects:</h3>
+                        <div class="subject-tags">
+                            <span class="subject-tag" onclick="searchBySubject('Mathematics')">Mathematics</span>
+                            <span class="subject-tag" onclick="searchBySubject('Physics')">Physics</span>
+                            <span class="subject-tag" onclick="searchBySubject('Chemistry')">Chemistry</span>
+                            <span class="subject-tag" onclick="searchBySubject('English')">English</span>
+                            <span class="subject-tag" onclick="searchBySubject('Computer Science')">Computer Science</span>
+                            <span class="subject-tag" onclick="searchBySubject('Biology')">Biology</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section">
+                <div class="results-header">
+                    <h2 id="resultsTitle">Available Tutors</h2>
+                    <div class="results-count">
+                        <span id="resultsCount">0</span> tutors found
+                    </div>
+                </div>
+
+                <div class="filters">
+                    <select id="sortBy" onchange="sortTutors()">
+                        <option value="relevance">Sort by Relevance</option>
+                        <option value="rating">Sort by Rating</option>
+                        <option value="price_low">Price: Low to High</option>
+                        <option value="price_high">Price: High to Low</option>
+                    </select>
+                </div>
+
+                <div id="tutorsContainer" class="tutors-grid">
+                    <!-- Tutor cards will be dynamically loaded here -->
+                </div>
+
+                <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Searching for tutors...</p>
+                </div>
+
+                <div id="noResults" class="no-results" style="display: none;">
+                    <i class="fas fa-search"></i>
+                    <h3>No tutors found</h3>
+                    <p>Try adjusting your search criteria or browse all available tutors.</p>
+                    <button class="btn btn-outline" onclick="loadAllTutors()">View All Tutors</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- AI Chatbot -->
+        <div class="chatbot-container">
+            <div class="chatbot-toggle" onclick="toggleChatbot()">
+                <i class="fas fa-robot"></i>
+                <span>AI Assistant</span>
+            </div>
+            
+            <div id="chatbotPanel" class="chatbot-panel">
+                <div class="chatbot-header">
+                    <h3>EduBridge AI Assistant</h3>
+                    <button class="chatbot-close" onclick="toggleChatbot()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div id="chatbotMessages" class="chatbot-messages">
+                    <div class="message bot-message">
+                        <div class="message-content">
+                            Hi! I'm here to help you find the perfect tutor. What subject are you looking for help with?
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chatbot-input">
+                    <input type="text" id="chatbotInput" placeholder="Ask me anything about finding tutors...">
+                    <button onclick="sendChatbotMessage()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Tutor Detail Modal -->
+    <div id="tutorModal" class="modal">
+        <div class="modal-content tutor-modal">
+            <span class="close" onclick="closeTutorModal()">&times;</span>
+            <div id="tutorModalContent">
+                <!-- Tutor details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/student_dashboard.js') }}"></script>
+</body>
+</html>
