@@ -565,25 +565,24 @@ def get_payment_history():
         })
     
     return jsonify(payment_data)
-
 import os
 
-# Ensure DB file path is absolute so Render can find/write it
+# Ensure DB file path is absolute
 db_path = os.path.join(os.getcwd(), "tutorlink.db")
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
 
-@app.before_first_request
-def create_tables():
-    # create tables if they don't exist
-    try:
-        db.create_all()
-    except Exception as e:
-        # log so Render logs capture the failure
-        app.logger.exception("Failed to create DB tables on startup: %s", e)
+# Run db.create_all() only once at first request
+@app.before_request
+def init_db_once():
+    if not hasattr(app, "_db_initialized"):
+        try:
+            db.create_all()
+            app.logger.info("Database tables created or already exist.")
+        except Exception as e:
+            app.logger.exception("Failed to create DB tables: %s", e)
+        app._db_initialized = True
 
-# Keep a local-run helper
+# Local dev runner
 if __name__ == "__main__":
-    # Only used for local dev
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
 
-    
