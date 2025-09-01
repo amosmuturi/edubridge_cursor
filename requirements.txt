@@ -1,4 +1,5 @@
 pip>=24.0
+setuptools>=70.0.0
 wheel
 Flask==2.3.3
 Flask-SQLAlchemy==3.0.5
@@ -9,6 +10,6 @@ numpy==1.24.3
 sentence-transformers==2.2.2
 torch==2.0.1
 transformers==4.35.0
-intasend
+git+https://github.com/intasend/python-sdk.git
 python-dotenv==1.0.0
 gunicorn==21.2.0
