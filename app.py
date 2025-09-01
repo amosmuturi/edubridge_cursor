@@ -6,8 +6,7 @@ import requests
 import json
 import os
 from datetime import datetime
-import numpy as np
-from sentence_transformers import SentenceTransformer
+# numpy and sentence_transformers removed for deployment compatibility
 import re
 from intasend import APIService
 from dotenv import load_dotenv
@@ -36,27 +35,23 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Hugging Face API configuration
-HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
-HUGGINGFACE_API_KEY = "your-huggingface-api-key"  # Replace with your actual API key
+# Hugging Face API configuration removed for deployment compatibility
 
 # IntaSend API configuration
 INTASEND_PUBLISHABLE_KEY = os.getenv('INTASEND_PUBLISHABLE_KEY', 'ISPubKey_test_...')
 INTASEND_SECRET_KEY = os.getenv('INTASEND_SECRET_KEY', 'ISSecretKey_test_...')
 INTASEND_API_URL = os.getenv('INTASEND_API_URL', 'https://sandbox.intasend.com')
 
-# Load sentence transformer model for semantic search
-# ==========================
-# Lazy-load SentenceTransformer to save memory
-# ==========================
+# ML model loading disabled for deployment compatibility
 _model = None
 
 def get_model():
     global _model
     if _model is None:
         try:
-            from sentence_transformers import SentenceTransformer
-            _model = SentenceTransformer("all-MiniLM-L6-v2")  # small model
+            # ML model loading disabled for deployment compatibility
+            app.logger.warning("ML model loading disabled for deployment")
+            return None
         except Exception as e:
             app.logger.warning(f"Failed to load ML model: {e}")
             return None
@@ -269,8 +264,8 @@ def search_tutors():
     
     tutors = tutors_query.all()
     
-    # Semantic search if query is provided and model is available
-    if query and model:
+    # Semantic search if query is provided and embeddings are available
+    if query and tutor_embeddings:
         tutor_data = []
         for tutor in tutors:
             user = User.query.get(tutor.user_id)
@@ -285,11 +280,36 @@ def search_tutors():
         query_embedding = embed_text([query])
         tutor_embeddings = embed_text([t['text'] for t in tutor_data])
         
-        # Calculate similarities
-        similarities = np.dot(tutor_embeddings, query_embedding.T).flatten()
+        # Check if embeddings were computed successfully
+        if not query_embedding or not tutor_embeddings:
+            # Fall back to basic search if ML features unavailable
+            result = []
+            for tutor in tutors:
+                user = User.query.get(tutor.user_id)
+                result.append({
+                    'id': tutor.id,
+                    'name': user.name,
+                    'subject': tutor.subject,
+                    'price_per_hour': tutor.price_per_hour,
+                    'availability': tutor.availability,
+                    'whatsapp_number': tutor.whatsapp_number,
+                    'location': tutor.location,
+                    'bio': tutor.bio,
+                    'rating': tutor.rating,
+                    'total_sessions': tutor.total_sessions
+                })
+            return jsonify(result)
+        
+        # Calculate similarities (simplified without numpy)
+        similarities = []
+        for i, tutor_embedding in enumerate(tutor_embeddings):
+            # Simple dot product calculation
+            similarity = sum(a * b for a, b in zip(tutor_embedding, query_embedding[0]))
+            similarities.append((similarity, i))
         
         # Sort by similarity
-        sorted_indices = np.argsort(similarities)[::-1]
+        similarities.sort(reverse=True)  # Sort by similarity score
+        sorted_indices = [idx for _, idx in similarities]
         sorted_tutors = [tutor_data[i] for i in sorted_indices]
         
         result = []
@@ -307,7 +327,7 @@ def search_tutors():
                 'bio': tutor.bio,
                 'rating': tutor.rating,
                 'total_sessions': tutor.total_sessions,
-                'similarity_score': float(similarities[sorted_indices[len(result)]])
+                                 'similarity_score': float(similarities[len(result)][0])
             })
     else:
         result = []
