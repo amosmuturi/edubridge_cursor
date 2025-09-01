@@ -211,11 +211,75 @@
                 </div>
                 <div class="form-group">
                     <label for="userType">I am a:</label>
-                    <select id="userType" name="user_type" required>
+                    <select id="userType" name="user_type" required onchange="toggleTutorFields()">
                         <option value="">Select your role</option>
                         <option value="student">Student</option>
                         <option value="tutor">Tutor</option>
                     </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signupPhone">Phone Number</label>
+                    <div class="phone-input-group">
+                        <span class="country-code">+254</span>
+                        <input type="tel" id="signupPhone" name="phone" placeholder="7XX XXX XXX" maxlength="9" pattern="[0-9]{9}" required>
+                    </div>
+                    <small class="form-text">Enter your phone number (without +254)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signupCounty">County</label>
+                    <select id="signupCounty" name="county" required>
+                        <option value="">Select County</option>
+                        <option value="Nairobi">Nairobi</option>
+                        <option value="Mombasa">Mombasa</option>
+                        <option value="Kisumu">Kisumu</option>
+                        <option value="Nakuru">Nakuru</option>
+                        <option value="Eldoret">Eldoret</option>
+                        <option value="Thika">Thika</option>
+                        <option value="Kakamega">Kakamega</option>
+                        <option value="Nyeri">Nyeri</option>
+                        <option value="Machakos">Machakos</option>
+                        <option value="Kisii">Kisii</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signupSubCounty">Sub-County</label>
+                    <input type="text" id="signupSubCounty" name="sub_county" placeholder="e.g., Westlands, Kilimani" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signupConstituency">Constituency</label>
+                    <input type="text" id="signupConstituency" name="constituency" placeholder="e.g., Westlands, Dagoretti North" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signupLocation">Specific Location</label>
+                    <input type="text" id="signupLocation" name="location" placeholder="e.g., Lavington, Karen" required>
+                </div>
+                
+                <!-- Tutor-specific fields -->
+                <div id="tutorFields" style="display: none;">
+                    <div class="form-group">
+                        <label for="signupSubject">Subject You Teach</label>
+                        <input type="text" id="signupSubject" name="subject" placeholder="e.g., Mathematics, Physics">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signupPrice">Price per Hour (KES)</label>
+                        <input type="number" id="signupPrice" name="price_per_hour" placeholder="e.g., 1000" min="100">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signupAvailability">Availability</label>
+                        <textarea id="signupAvailability" name="availability" placeholder="e.g., Weekdays 4-8 PM, Weekends 9 AM-5 PM"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signupBio">Bio</label>
+                        <textarea id="signupBio" name="bio" placeholder="Tell students about your teaching experience and qualifications"></textarea>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary btn-full">Create Account</button>
             </form>

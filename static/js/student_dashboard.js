@@ -427,6 +427,17 @@ function calculateTotal() {
     document.getElementById('totalAmount').value = total.toFixed(2);
 }
 
+function toggleMpesaForm() {
+    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+    const mpesaForm = document.getElementById('mpesaPhoneForm');
+    
+    if (paymentMethod === 'mpesa') {
+        mpesaForm.style.display = 'block';
+    } else {
+        mpesaForm.style.display = 'none';
+    }
+}
+
 function processPayment() {
     if (!selectedTutor) return;
     
@@ -440,24 +451,41 @@ function processPayment() {
         return;
     }
     
+    // Validate M-Pesa phone number
+    if (paymentMethod === 'mpesa') {
+        const mpesaPhone = document.getElementById('mpesaPhone').value.trim();
+        if (!mpesaPhone || mpesaPhone.length !== 9 || !/^[0-9]{9}$/.test(mpesaPhone)) {
+            alert('Please enter a valid M-Pesa phone number (9 digits, e.g., 712345678)');
+            return;
+        }
+    }
+    
     // Show loading state
     const payButton = document.querySelector('.payment-actions .btn-primary');
     const originalText = payButton.innerHTML;
     payButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
     payButton.disabled = true;
     
+    const paymentData = {
+        tutor_id: selectedTutor.id,
+        amount: totalAmount,
+        duration_hours: durationHours,
+        session_date: sessionDate,
+        payment_method: paymentMethod
+    };
+    
+    // Add phone number for M-Pesa
+    if (paymentMethod === 'mpesa') {
+        const mpesaPhone = document.getElementById('mpesaPhone').value.trim();
+        paymentData.phone_number = '+254' + mpesaPhone;
+    }
+    
     fetch('/api/payments/create', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            tutor_id: selectedTutor.id,
-            amount: totalAmount,
-            duration_hours: durationHours,
-            session_date: sessionDate,
-            payment_method: paymentMethod
-        })
+        body: JSON.stringify(paymentData)
     })
     .then(response => response.json())
     .then(data => {
@@ -465,9 +493,9 @@ function processPayment() {
             closePaymentModal();
             showPaymentStatus(data, 'pending');
             
-            // If M-Pesa, redirect to payment URL
-            if (paymentMethod === 'mpesa' && data.payment_url) {
-                window.open(data.payment_url, '_blank');
+            // If M-Pesa, show instructions
+            if (paymentMethod === 'mpesa') {
+                showMpesaInstructions(data);
             }
         } else {
             alert(data.error || 'Payment failed. Please try again.');
@@ -482,6 +510,37 @@ function processPayment() {
         payButton.innerHTML = originalText;
         payButton.disabled = false;
     });
+}
+
+function showMpesaInstructions(paymentData) {
+    const modal = document.getElementById('paymentStatusModal');
+    const content = document.getElementById('paymentStatusContent');
+    
+    content.innerHTML = `
+        <div class="payment-status pending">
+            <i class="fas fa-mobile-alt"></i>
+            <h3>M-Pesa Payment Instructions</h3>
+            <p>You will receive an M-Pesa prompt on your phone shortly. Please:</p>
+            <div class="mpesa-instructions">
+                <ol>
+                    <li>Check your phone for the M-Pesa prompt</li>
+                    <li>Enter your M-Pesa PIN when prompted</li>
+                    <li>Confirm the payment</li>
+                    <li>Wait for the confirmation message</li>
+                </ol>
+            </div>
+            <div class="payment-amount">
+                <div class="amount">KES ${paymentData.amount}</div>
+                <div class="currency">Amount to Pay</div>
+            </div>
+            <button class="btn btn-primary" onclick="checkPaymentStatus(${paymentData.payment_id})">
+                <i class="fas fa-sync-alt"></i>
+                Check Payment Status
+            </button>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
 }
 
 function showPaymentStatus(paymentData, status) {

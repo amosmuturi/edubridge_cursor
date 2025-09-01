@@ -27,6 +27,27 @@ function switchToLogin() {
     showLoginForm();
 }
 
+function toggleTutorFields() {
+    const userType = document.getElementById('userType').value;
+    const tutorFields = document.getElementById('tutorFields');
+    
+    if (userType === 'tutor') {
+        tutorFields.style.display = 'block';
+        // Make tutor fields required
+        document.getElementById('signupSubject').required = true;
+        document.getElementById('signupPrice').required = true;
+        document.getElementById('signupAvailability').required = true;
+        document.getElementById('signupBio').required = true;
+    } else {
+        tutorFields.style.display = 'none';
+        // Make tutor fields not required
+        document.getElementById('signupSubject').required = false;
+        document.getElementById('signupPrice').required = false;
+        document.getElementById('signupAvailability').required = false;
+        document.getElementById('signupBio').required = false;
+    }
+}
+
 // Close modals when clicking outside
 window.onclick = function(event) {
     const loginModal = document.getElementById('loginModal');
@@ -103,10 +124,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const email = document.getElementById('signupEmail').value;
             const password = document.getElementById('signupPassword').value;
             const userType = document.getElementById('userType').value;
+            const phone = document.getElementById('signupPhone').value;
+            const county = document.getElementById('signupCounty').value;
+            const subCounty = document.getElementById('signupSubCounty').value;
+            const constituency = document.getElementById('signupConstituency').value;
+            const location = document.getElementById('signupLocation').value;
             
             // Basic validation
-            if (!name || !email || !password || !userType) {
-                alert('Please fill in all fields');
+            if (!name || !email || !password || !userType || !phone || !county || !subCounty || !constituency || !location) {
+                alert('Please fill in all required fields');
                 return;
             }
             
@@ -120,18 +146,50 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
+            // Validate phone number
+            if (!/^[0-9]{9}$/.test(phone)) {
+                alert('Please enter a valid phone number (9 digits, e.g., 712345678)');
+                return;
+            }
+            
+            // Prepare form data
+            const formData = {
+                name: name,
+                email: email,
+                password: password,
+                user_type: userType,
+                phone: '+254' + phone,
+                county: county,
+                sub_county: subCounty,
+                constituency: constituency,
+                location: location
+            };
+            
+            // Add tutor-specific fields if user is a tutor
+            if (userType === 'tutor') {
+                const subject = document.getElementById('signupSubject').value;
+                const pricePerHour = document.getElementById('signupPrice').value;
+                const availability = document.getElementById('signupAvailability').value;
+                const bio = document.getElementById('signupBio').value;
+                
+                if (!subject || !pricePerHour || !availability || !bio) {
+                    alert('Please fill in all tutor fields');
+                    return;
+                }
+                
+                formData.subject = subject;
+                formData.price_per_hour = parseFloat(pricePerHour);
+                formData.availability = availability;
+                formData.bio = bio;
+            }
+            
             // Submit form
             fetch('/signup', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    name: name,
-                    email: email,
-                    password: password,
-                    user_type: userType
-                })
+                body: JSON.stringify(formData)
             })
             .then(response => {
                 if (!response.ok) {

@@ -543,6 +543,42 @@ p {
     text-decoration: underline;
 }
 
+/* Phone Input Styles for Landing Page */
+.auth-form .phone-input-group {
+    display: flex;
+    align-items: center;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.auth-form .country-code {
+    background: #f8fafc;
+    padding: 0.75rem;
+    border-right: 2px solid #e5e7eb;
+    color: #374151;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.auth-form .phone-input-group input {
+    border: none;
+    padding: 0.75rem;
+    flex: 1;
+    font-size: 1rem;
+}
+
+.auth-form .phone-input-group input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.auth-form .form-text {
+    color: #64748b;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .nav-menu {

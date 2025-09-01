@@ -737,7 +737,18 @@
 
 /* Payment Modal Styles */
 .payment-modal {
-    max-width: 500px;
+    max-width: 90vw;
+    width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+    .payment-modal {
+        max-width: 95vw;
+        width: 95vw;
+        margin: 2% auto;
+    }
 }
 
 .payment-header {
@@ -903,4 +914,64 @@
 .payment-amount .currency {
     color: #64748b;
     font-size: 0.9rem;
+}
+
+/* Phone Input Styles */
+.phone-input-group {
+    display: flex;
+    align-items: center;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.country-code {
+    background: #f8fafc;
+    padding: 0.75rem;
+    border-right: 2px solid #e5e7eb;
+    color: #374151;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.phone-input-group input {
+    border: none;
+    padding: 0.75rem;
+    flex: 1;
+    font-size: 1rem;
+}
+
+.phone-input-group input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.form-text {
+    color: #64748b;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+/* M-Pesa Instructions */
+.mpesa-instructions {
+    background: #f8fafc;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    text-align: left;
+}
+
+.mpesa-instructions ol {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.mpesa-instructions li {
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+.mpesa-instructions li:last-child {
+    margin-bottom: 0;
 }

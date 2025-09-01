@@ -47,6 +47,11 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     user_type = db.Column(db.String(20), nullable=False)  # 'student' or 'tutor'
+    phone = db.Column(db.String(15), nullable=False)
+    county = db.Column(db.String(50), nullable=False)
+    sub_county = db.Column(db.String(50), nullable=False)
+    constituency = db.Column(db.String(50), nullable=False)
+    location = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Tutor(db.Model):
@@ -125,6 +130,11 @@ def signup():
         email = data.get('email')
         password = data.get('password')
         user_type = data.get('user_type')
+        phone = data.get('phone')
+        county = data.get('county')
+        sub_county = data.get('sub_county')
+        constituency = data.get('constituency')
+        location = data.get('location')
         
         if User.query.filter_by(email=email).first():
             return jsonify({'success': False, 'message': 'Email already registered'})
@@ -133,15 +143,39 @@ def signup():
             name=name,
             email=email,
             password_hash=generate_password_hash(password),
-            user_type=user_type
+            user_type=user_type,
+            phone=phone,
+            county=county,
+            sub_county=sub_county,
+            constituency=constituency,
+            location=location
         )
         db.session.add(user)
         db.session.commit()
         
+        # If user is a tutor, create tutor profile
+        if user_type == 'tutor':
+            subject = data.get('subject')
+            price_per_hour = data.get('price_per_hour')
+            availability = data.get('availability')
+            bio = data.get('bio')
+            
+            tutor = Tutor(
+                user_id=user.id,
+                subject=subject,
+                price_per_hour=price_per_hour,
+                availability=availability,
+                bio=bio,
+                whatsapp_number=phone,
+                location=f"{county}, {sub_county}, {constituency}, {location}"
+            )
+            db.session.add(tutor)
+            db.session.commit()
+        
         login_user(user)
         return jsonify({'success': True, 'redirect': url_for('dashboard')})
     
-    return render_template('signup.html')
+    return render_template('landing.html')
 
 @app.route('/logout')
 @login_required
@@ -354,10 +388,16 @@ def create_payment():
     amount = data.get('amount')
     duration_hours = data.get('duration_hours', 1)
     session_date = data.get('session_date')
+    payment_method = data.get('payment_method', 'mpesa')
+    phone_number = data.get('phone_number')
     
     # Validate input
     if not all([tutor_id, amount, session_date]):
         return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Validate phone number for M-Pesa
+    if payment_method == 'mpesa' and not phone_number:
+        return jsonify({'error': 'Phone number required for M-Pesa payment'}), 400
     
     try:
         # Initialize IntaSend API
@@ -372,12 +412,17 @@ def create_payment():
             student_id=current_user.id,
             tutor_id=tutor_id,
             amount=amount,
-            description=f"Tutoring session - {duration_hours} hour(s)"
+            description=f"Tutoring session - {duration_hours} hour(s)",
+            payment_method=payment_method
         )
         db.session.add(payment)
         db.session.commit()
         
-        # Create IntaSend invoice
+        # Get tutor info
+        tutor = Tutor.query.get(tutor_id)
+        tutor_user = User.query.get(tutor.user_id) if tutor else None
+        
+        # Create IntaSend invoice with M-Pesa integration
         invoice_data = {
             'invoice': {
                 'number': f"INV-{payment.id:06d}",
@@ -388,10 +433,16 @@ def create_payment():
                 'customer': {
                     'email': current_user.email,
                     'first_name': current_user.name.split()[0] if current_user.name else '',
-                    'last_name': ' '.join(current_user.name.split()[1:]) if len(current_user.name.split()) > 1 else ''
+                    'last_name': ' '.join(current_user.name.split()[1:]) if len(current_user.name.split()) > 1 else '',
+                    'phone': phone_number if phone_number else None
                 }
             }
         }
+        
+        # Add M-Pesa specific configuration
+        if payment_method == 'mpesa' and phone_number:
+            invoice_data['invoice']['payment_methods'] = ['mpesa']
+            invoice_data['invoice']['mpesa_phone'] = phone_number
         
         response = intasend.create_invoice(invoice_data)
         
@@ -405,7 +456,8 @@ def create_payment():
                 'payment_id': payment.id,
                 'invoice_id': response.get('invoice_id'),
                 'payment_url': response.get('hosted_url'),
-                'amount': amount
+                'amount': amount,
+                'tutor_name': tutor_user.name if tutor_user else 'Unknown Tutor'
             })
         else:
             payment.status = 'failed'

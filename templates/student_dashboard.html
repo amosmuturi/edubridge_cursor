@@ -169,19 +169,29 @@
                 <div class="payment-methods">
                     <h3>Payment Method</h3>
                     <div class="payment-option">
-                        <input type="radio" id="mpesa" name="paymentMethod" value="mpesa" checked>
+                        <input type="radio" id="mpesa" name="paymentMethod" value="mpesa" checked onchange="toggleMpesaForm()">
                         <label for="mpesa">
                             <i class="fas fa-mobile-alt"></i>
                             M-Pesa Mobile Money
                         </label>
                     </div>
                     <div class="payment-option">
-                        <input type="radio" id="card" name="paymentMethod" value="card">
+                        <input type="radio" id="card" name="paymentMethod" value="card" onchange="toggleMpesaForm()">
                         <label for="card">
                             <i class="fas fa-credit-card"></i>
                             Credit/Debit Card
                         </label>
                     </div>
+                </div>
+                
+                <!-- M-Pesa Phone Number Form -->
+                <div id="mpesaPhoneForm" class="form-group" style="display: block;">
+                    <label for="mpesaPhone">M-Pesa Phone Number</label>
+                    <div class="phone-input-group">
+                        <span class="country-code">+254</span>
+                        <input type="tel" id="mpesaPhone" placeholder="7XX XXX XXX" maxlength="9" pattern="[0-9]{9}">
+                    </div>
+                    <small class="form-text">Enter your M-Pesa registered phone number (without +254)</small>
                 </div>
                 
                 <div class="payment-actions">
