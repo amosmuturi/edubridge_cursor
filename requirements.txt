@@ -13,3 +13,4 @@ transformers==4.35.0
 intasend-python
 python-dotenv==1.0.0
 gunicorn==21.2.0
+Flask-Migrate==4.0.7
