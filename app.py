@@ -18,9 +18,18 @@ load_dotenv()
 
 app = Flask(__name__)
 # Use smaller model to save memory
-app.config['SECRET_KEY'] = 'tutorlink-secret-key-2024'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tutorlink.db'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'tutorlink-secret-key-2024')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Database configuration - use environment variable or default to local file
+if os.getenv('RENDER'):
+    # On Render, use a path that's writable
+    db_path = os.path.join('/tmp', 'edubridge.db')
+else:
+    # Local development
+    db_path = os.path.join(os.getcwd(), 'edubridge.db')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -45,21 +54,31 @@ _model = None
 def get_model():
     global _model
     if _model is None:
-        from sentence_transformers import SentenceTransformer
-        _model = SentenceTransformer("all-MiniLM-L6-v2")  # small model
+        try:
+            from sentence_transformers import SentenceTransformer
+            _model = SentenceTransformer("all-MiniLM-L6-v2")  # small model
+        except Exception as e:
+            app.logger.warning(f"Failed to load ML model: {e}")
+            return None
     return _model
 
 def embed_text(texts):
     """
     Safely compute embeddings in small batches
     """
-    model = get_model()
-    embeddings = []
-    batch_size = 5  # reduce if still running out of memory
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i:i+batch_size]
-        embeddings.extend(model.encode(batch))
-    return embeddings
+    try:
+        model = get_model()
+        if model is None:
+            return []
+        embeddings = []
+        batch_size = 5  # reduce if still running out of memory
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
+            embeddings.extend(model.encode(batch))
+        return embeddings
+    except Exception as e:
+        app.logger.error(f"Error computing embeddings: {e}")
+        return []
 
 # Database Models
 class User(UserMixin, db.Model):
@@ -588,10 +607,6 @@ def get_payment_history():
     return jsonify(payment_data)
 import os
 
-# Ensure DB file path is absolute
-db_path = os.path.join(os.getcwd(), "tutorlink.db")
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
-
 # Run db.create_all() only once at first request
 @app.before_request
 def init_db_once():
@@ -601,7 +616,38 @@ def init_db_once():
             app.logger.info("Database tables created or already exist.")
         except Exception as e:
             app.logger.exception("Failed to create DB tables: %s", e)
+            # Don't fail the request, just log the error
         app._db_initialized = True
+
+# Add error handlers for production
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f"Internal server error: {error}")
+    return jsonify({'error': 'Internal server error'}), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify({'error': 'Not found'}), 404
+
+# Health check endpoint for deployment
+@app.route('/health')
+def health_check():
+    try:
+        # Test database connection
+        db.session.execute('SELECT 1')
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected',
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        app.logger.error(f"Health check failed: {e}")
+        return jsonify({
+            'status': 'unhealthy',
+            'database': 'disconnected',
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
 
 # Local dev runner
 if __name__ == "__main__":
