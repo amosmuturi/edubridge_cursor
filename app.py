@@ -11,11 +11,14 @@ from sentence_transformers import SentenceTransformer
 import re
 from intasend import APIService
 from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
+# Use smaller model to save memory
+model = SentenceTransformer("all-MiniLM-L6-v2")
 app.config['SECRET_KEY'] = 'tutorlink-secret-key-2024'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tutorlink.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
