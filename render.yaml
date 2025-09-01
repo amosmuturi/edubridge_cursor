@@ -22,3 +22,5 @@ services:
         sync: false
       - key: INTASEND_API_URL
         value: https://api.intasend.com
+      - key: INTASEND_ENVIRONMENT
+        value: sandbox

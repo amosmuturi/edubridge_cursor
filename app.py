@@ -42,6 +42,9 @@ INTASEND_PUBLISHABLE_KEY = os.getenv('INTASEND_PUBLISHABLE_KEY', 'ISPubKey_test_
 INTASEND_SECRET_KEY = os.getenv('INTASEND_SECRET_KEY', 'ISSecretKey_test_...')
 INTASEND_API_URL = os.getenv('INTASEND_API_URL', 'https://sandbox.intasend.com')
 
+# IntaSend environment (sandbox for testing, production for live)
+INTASEND_ENVIRONMENT = os.getenv('INTASEND_ENVIRONMENT', 'sandbox')
+
 # ML model loading disabled for deployment compatibility
 _model = None
 
@@ -463,8 +466,7 @@ def create_payment():
         # Initialize IntaSend API
         intasend = APIService(
             publishable_key=INTASEND_PUBLISHABLE_KEY,
-            secret_key=INTASEND_SECRET_KEY,
-            test=True  # Set to False for production
+            secret_key=INTASEND_SECRET_KEY
         )
         
         # Create payment record
@@ -482,47 +484,82 @@ def create_payment():
         tutor = Tutor.query.get(tutor_id)
         tutor_user = User.query.get(tutor.user_id) if tutor else None
         
-        # Create IntaSend invoice with M-Pesa integration
-        invoice_data = {
-            'invoice': {
-                'number': f"INV-{payment.id:06d}",
-                'currency': 'KES',
+        # Create IntaSend collection request for M-Pesa
+        if payment_method == 'mpesa' and phone_number:
+            # Format phone number for M-Pesa (remove +254 if present, add 254)
+            formatted_phone = phone_number.replace('+', '').replace(' ', '')
+            if formatted_phone.startswith('0'):
+                formatted_phone = '254' + formatted_phone[1:]
+            elif not formatted_phone.startswith('254'):
+                formatted_phone = '254' + formatted_phone
+            
+            # Create collection request for M-Pesa
+            collection_data = {
                 'amount': amount,
-                'description': payment.description,
-                'due_date': session_date,
-                'customer': {
-                    'email': current_user.email,
-                    'first_name': current_user.name.split()[0] if current_user.name else '',
-                    'last_name': ' '.join(current_user.name.split()[1:]) if len(current_user.name.split()) > 1 else '',
-                    'phone': phone_number if phone_number else None
+                'currency': 'KES',
+                'narrative': f"Tutoring session - {duration_hours} hour(s)",
+                'account_ref': f"TUTOR-{payment.id}",
+                'payment_methods': ['mpesa'],
+                'mpesa_phone': formatted_phone,
+                'callback_url': request.host_url + 'api/payments/webhook'
+            }
+            
+            response = intasend.collection_requests.create(collection_data)
+            
+            if response.get('state') == 'PENDING':
+                payment.intasend_invoice_id = response.get('id')
+                payment.status = 'pending'
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'payment_id': payment.id,
+                    'collection_id': response.get('id'),
+                    'amount': amount,
+                    'tutor_name': tutor_user.name if tutor_user else 'Unknown Tutor',
+                    'message': f'M-Pesa payment request sent to {formatted_phone}. Check your phone for the payment prompt.'
+                })
+            else:
+                payment.status = 'failed'
+                db.session.commit()
+                return jsonify({'error': 'Failed to create M-Pesa payment request'}), 500
+        else:
+            # For other payment methods, create invoice
+            invoice_data = {
+                'invoice': {
+                    'number': f"INV-{payment.id:06d}",
+                    'currency': 'KES',
+                    'amount': amount,
+                    'description': payment.description,
+                    'due_date': session_date,
+                    'customer': {
+                        'email': current_user.email,
+                        'first_name': current_user.name.split()[0] if current_user.name else '',
+                        'last_name': ' '.join(current_user.name.split()[1:]) if len(current_user.name.split()) > 1 else '',
+                        'phone': phone_number if phone_number else None
+                    }
                 }
             }
-        }
-        
-        # Add M-Pesa specific configuration
-        if payment_method == 'mpesa' and phone_number:
-            invoice_data['invoice']['payment_methods'] = ['mpesa']
-            invoice_data['invoice']['mpesa_phone'] = phone_number
-        
-        response = intasend.create_invoice(invoice_data)
-        
-        if response.get('state') == 'PENDING':
-            payment.intasend_invoice_id = response.get('invoice_id')
-            payment.status = 'pending'
-            db.session.commit()
             
-            return jsonify({
-                'success': True,
-                'payment_id': payment.id,
-                'invoice_id': response.get('invoice_id'),
-                'payment_url': response.get('hosted_url'),
-                'amount': amount,
-                'tutor_name': tutor_user.name if tutor_user else 'Unknown Tutor'
-            })
-        else:
-            payment.status = 'failed'
-            db.session.commit()
-            return jsonify({'error': 'Failed to create payment'}), 500
+            response = intasend.invoices.create(invoice_data)
+            
+            if response.get('state') == 'PENDING':
+                payment.intasend_invoice_id = response.get('id')
+                payment.status = 'pending'
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'payment_id': payment.id,
+                    'invoice_id': response.get('id'),
+                    'payment_url': response.get('hosted_url'),
+                    'amount': amount,
+                    'tutor_name': tutor_user.name if tutor_user else 'Unknown Tutor'
+                })
+            else:
+                payment.status = 'failed'
+                db.session.commit()
+                return jsonify({'error': 'Failed to create payment'}), 500
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -540,14 +577,24 @@ def get_payment_status(payment_id):
         # Initialize IntaSend API
         intasend = APIService(
             publishable_key=INTASEND_PUBLISHABLE_KEY,
-            secret_key=INTASEND_SECRET_KEY,
-            test=True
+            secret_key=INTASEND_SECRET_KEY
         )
         
         if payment.intasend_invoice_id:
-            # Get invoice status from IntaSend
-            invoice_status = intasend.get_invoice(payment.intasend_invoice_id)
-            payment.status = invoice_status.get('state', 'pending').lower()
+            # Get payment status from IntaSend
+            try:
+                # Try to get collection request status first (for M-Pesa)
+                collection_status = intasend.collection_requests.retrieve(payment.intasend_invoice_id)
+                payment.status = collection_status.get('state', 'pending').lower()
+            except:
+                # If not a collection request, try invoice
+                try:
+                    invoice_status = intasend.invoices.retrieve(payment.intasend_invoice_id)
+                    payment.status = invoice_status.get('state', 'pending').lower()
+                except:
+                    # If both fail, keep current status
+                    pass
+            
             db.session.commit()
         
         return jsonify({
@@ -567,12 +614,17 @@ def payment_webhook():
     """Handle IntaSend payment webhooks"""
     try:
         data = request.get_json()
+        app.logger.info(f"Webhook received: {data}")
         
         # Verify webhook signature (you should implement this)
         # signature = request.headers.get('X-Intasend-Signature')
         
-        invoice_id = data.get('invoice_id')
+        # Handle both collection requests and invoices
+        invoice_id = data.get('invoice_id') or data.get('id')
         state = data.get('state')
+        
+        if not invoice_id or not state:
+            return jsonify({'error': 'Missing required webhook data'}), 400
         
         # Find payment by invoice ID
         payment = Payment.query.filter_by(intasend_invoice_id=invoice_id).first()
@@ -589,14 +641,22 @@ def payment_webhook():
                     duration_hours=1  # Default duration
                 )
                 db.session.add(session)
+                app.logger.info(f"Payment {payment.id} completed, session created")
             elif state == 'FAILED':
                 payment.status = 'failed'
+                app.logger.info(f"Payment {payment.id} failed")
+            elif state == 'PENDING':
+                payment.status = 'pending'
+                app.logger.info(f"Payment {payment.id} pending")
             
             db.session.commit()
+        else:
+            app.logger.warning(f"Payment not found for webhook ID: {invoice_id}")
         
         return jsonify({'success': True})
         
     except Exception as e:
+        app.logger.error(f"Webhook error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/payments/history', methods=['GET'])
