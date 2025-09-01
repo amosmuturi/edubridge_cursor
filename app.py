@@ -11,14 +11,13 @@ from sentence_transformers import SentenceTransformer
 import re
 from intasend import APIService
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
+
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 # Use smaller model to save memory
-model = SentenceTransformer("all-MiniLM-L6-v2")
 app.config['SECRET_KEY'] = 'tutorlink-secret-key-2024'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tutorlink.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -38,10 +37,29 @@ INTASEND_SECRET_KEY = os.getenv('INTASEND_SECRET_KEY', 'ISSecretKey_test_...')
 INTASEND_API_URL = os.getenv('INTASEND_API_URL', 'https://sandbox.intasend.com')
 
 # Load sentence transformer model for semantic search
-try:
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-except:
-    model = None
+# ==========================
+# Lazy-load SentenceTransformer to save memory
+# ==========================
+_model = None
+
+def get_model():
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        _model = SentenceTransformer("all-MiniLM-L6-v2")  # small model
+    return _model
+
+def embed_text(texts):
+    """
+    Safely compute embeddings in small batches
+    """
+    model = get_model()
+    embeddings = []
+    batch_size = 5  # reduce if still running out of memory
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i+batch_size]
+        embeddings.extend(model.encode(batch))
+    return embeddings
 
 # Database Models
 class User(UserMixin, db.Model):
