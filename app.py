@@ -584,7 +584,7 @@ def init_db_once():
 
 # Local dev runner
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
 
 from flask_migrate import Migrate
 
