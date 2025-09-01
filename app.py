@@ -9,6 +9,11 @@ from datetime import datetime
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import re
+from intasend import APIService
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'tutorlink-secret-key-2024'
@@ -23,6 +28,11 @@ login_manager.login_view = 'login'
 # Hugging Face API configuration
 HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
 HUGGINGFACE_API_KEY = "your-huggingface-api-key"  # Replace with your actual API key
+
+# IntaSend API configuration
+INTASEND_PUBLISHABLE_KEY = os.getenv('INTASEND_PUBLISHABLE_KEY', 'ISPubKey_test_...')
+INTASEND_SECRET_KEY = os.getenv('INTASEND_SECRET_KEY', 'ISSecretKey_test_...')
+INTASEND_API_URL = os.getenv('INTASEND_API_URL', 'https://sandbox.intasend.com')
 
 # Load sentence transformer model for semantic search
 try:
@@ -57,6 +67,30 @@ class Connection(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     tutor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Payment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    tutor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(3), default='KES')
+    status = db.Column(db.String(20), default='pending')  # pending, completed, failed
+    intasend_invoice_id = db.Column(db.String(100), nullable=True)
+    payment_method = db.Column(db.String(50), nullable=True)  # mpesa, card, bank
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Session(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    tutor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    payment_id = db.Column(db.Integer, db.ForeignKey('payment.id'), nullable=True)
+    session_date = db.Column(db.DateTime, nullable=False)
+    duration_hours = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String(20), default='scheduled')  # scheduled, completed, cancelled
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -307,6 +341,178 @@ def chatbot():
         response = "I'm here to help you find the perfect tutor! You can search by subject, location, or ask me about specific topics like math, science, or English."
     
     return jsonify({'response': response})
+
+# Payment Routes
+@app.route('/api/payments/create', methods=['POST'])
+@login_required
+def create_payment():
+    if current_user.user_type != 'student':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    tutor_id = data.get('tutor_id')
+    amount = data.get('amount')
+    duration_hours = data.get('duration_hours', 1)
+    session_date = data.get('session_date')
+    
+    # Validate input
+    if not all([tutor_id, amount, session_date]):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    try:
+        # Initialize IntaSend API
+        intasend = APIService(
+            publishable_key=INTASEND_PUBLISHABLE_KEY,
+            secret_key=INTASEND_SECRET_KEY,
+            test=True  # Set to False for production
+        )
+        
+        # Create payment record
+        payment = Payment(
+            student_id=current_user.id,
+            tutor_id=tutor_id,
+            amount=amount,
+            description=f"Tutoring session - {duration_hours} hour(s)"
+        )
+        db.session.add(payment)
+        db.session.commit()
+        
+        # Create IntaSend invoice
+        invoice_data = {
+            'invoice': {
+                'number': f"INV-{payment.id:06d}",
+                'currency': 'KES',
+                'amount': amount,
+                'description': payment.description,
+                'due_date': session_date,
+                'customer': {
+                    'email': current_user.email,
+                    'first_name': current_user.name.split()[0] if current_user.name else '',
+                    'last_name': ' '.join(current_user.name.split()[1:]) if len(current_user.name.split()) > 1 else ''
+                }
+            }
+        }
+        
+        response = intasend.create_invoice(invoice_data)
+        
+        if response.get('state') == 'PENDING':
+            payment.intasend_invoice_id = response.get('invoice_id')
+            payment.status = 'pending'
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'payment_id': payment.id,
+                'invoice_id': response.get('invoice_id'),
+                'payment_url': response.get('hosted_url'),
+                'amount': amount
+            })
+        else:
+            payment.status = 'failed'
+            db.session.commit()
+            return jsonify({'error': 'Failed to create payment'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payments/status/<int:payment_id>', methods=['GET'])
+@login_required
+def get_payment_status(payment_id):
+    payment = Payment.query.get_or_404(payment_id)
+    
+    # Check if user is authorized to view this payment
+    if payment.student_id != current_user.id and payment.tutor_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    try:
+        # Initialize IntaSend API
+        intasend = APIService(
+            publishable_key=INTASEND_PUBLISHABLE_KEY,
+            secret_key=INTASEND_SECRET_KEY,
+            test=True
+        )
+        
+        if payment.intasend_invoice_id:
+            # Get invoice status from IntaSend
+            invoice_status = intasend.get_invoice(payment.intasend_invoice_id)
+            payment.status = invoice_status.get('state', 'pending').lower()
+            db.session.commit()
+        
+        return jsonify({
+            'payment_id': payment.id,
+            'status': payment.status,
+            'amount': payment.amount,
+            'currency': payment.currency,
+            'created_at': payment.created_at.isoformat(),
+            'description': payment.description
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payments/webhook', methods=['POST'])
+def payment_webhook():
+    """Handle IntaSend payment webhooks"""
+    try:
+        data = request.get_json()
+        
+        # Verify webhook signature (you should implement this)
+        # signature = request.headers.get('X-Intasend-Signature')
+        
+        invoice_id = data.get('invoice_id')
+        state = data.get('state')
+        
+        # Find payment by invoice ID
+        payment = Payment.query.filter_by(intasend_invoice_id=invoice_id).first()
+        
+        if payment:
+            if state == 'COMPLETED':
+                payment.status = 'completed'
+                # Create session record
+                session = Session(
+                    student_id=payment.student_id,
+                    tutor_id=payment.tutor_id,
+                    payment_id=payment.id,
+                    session_date=payment.created_at,  # You might want to get this from the request
+                    duration_hours=1  # Default duration
+                )
+                db.session.add(session)
+            elif state == 'FAILED':
+                payment.status = 'failed'
+            
+            db.session.commit()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payments/history', methods=['GET'])
+@login_required
+def get_payment_history():
+    """Get payment history for the current user"""
+    if current_user.user_type == 'student':
+        payments = Payment.query.filter_by(student_id=current_user.id).order_by(Payment.created_at.desc()).all()
+    else:
+        payments = Payment.query.filter_by(tutor_id=current_user.id).order_by(Payment.created_at.desc()).all()
+    
+    payment_data = []
+    for payment in payments:
+        student = User.query.get(payment.student_id)
+        tutor = User.query.get(payment.tutor_id)
+        
+        payment_data.append({
+            'id': payment.id,
+            'amount': payment.amount,
+            'currency': payment.currency,
+            'status': payment.status,
+            'description': payment.description,
+            'created_at': payment.created_at.isoformat(),
+            'student_name': student.name if student else 'Unknown',
+            'tutor_name': tutor.name if tutor else 'Unknown'
+        })
+    
+    return jsonify(payment_data)
 
 if __name__ == '__main__':
     with app.app_context():

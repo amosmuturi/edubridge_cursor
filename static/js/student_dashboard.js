@@ -241,8 +241,12 @@ function showTutorModal(tutor) {
             ` : ''}
             
             <div class="tutor-modal-actions">
+                <button class="btn btn-primary" onclick="openPaymentModal(${JSON.stringify(tutor).replace(/"/g, '&quot;')}); closeTutorModal();">
+                    <i class="fas fa-credit-card"></i>
+                    Book Session
+                </button>
                 <a href="https://wa.me/${tutor.whatsapp_number}?text=Hello! I'm interested in ${tutor.subject} tutoring" 
-                   class="btn btn-primary" target="_blank" onclick="connectTutor(${tutor.id});">
+                   class="btn btn-outline" target="_blank" onclick="connectTutor(${tutor.id});">
                     <i class="fab fa-whatsapp"></i>
                     Connect via WhatsApp
                 </a>
@@ -381,7 +385,171 @@ function addMessage(text, sender) {
 // Close modals when clicking outside
 window.onclick = function(event) {
     const tutorModal = document.getElementById('tutorModal');
+    const paymentModal = document.getElementById('paymentModal');
+    const paymentStatusModal = document.getElementById('paymentStatusModal');
+    
     if (event.target === tutorModal) {
         closeTutorModal();
     }
+    if (event.target === paymentModal) {
+        closePaymentModal();
+    }
+    if (event.target === paymentStatusModal) {
+        closePaymentStatusModal();
+    }
+}
+
+// Payment functionality
+let selectedTutor = null;
+
+function openPaymentModal(tutor) {
+    selectedTutor = tutor;
+    document.getElementById('paymentModal').style.display = 'block';
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().slice(0, 16);
+    document.getElementById('sessionDate').min = today;
+    
+    // Calculate initial total
+    calculateTotal();
+}
+
+function closePaymentModal() {
+    document.getElementById('paymentModal').style.display = 'none';
+    selectedTutor = null;
+}
+
+function calculateTotal() {
+    if (!selectedTutor) return;
+    
+    const duration = parseFloat(document.getElementById('durationHours').value);
+    const total = selectedTutor.price_per_hour * duration;
+    document.getElementById('totalAmount').value = total.toFixed(2);
+}
+
+function processPayment() {
+    if (!selectedTutor) return;
+    
+    const sessionDate = document.getElementById('sessionDate').value;
+    const durationHours = parseFloat(document.getElementById('durationHours').value);
+    const totalAmount = parseFloat(document.getElementById('totalAmount').value);
+    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+    
+    if (!sessionDate) {
+        alert('Please select a session date and time');
+        return;
+    }
+    
+    // Show loading state
+    const payButton = document.querySelector('.payment-actions .btn-primary');
+    const originalText = payButton.innerHTML;
+    payButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    payButton.disabled = true;
+    
+    fetch('/api/payments/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            tutor_id: selectedTutor.id,
+            amount: totalAmount,
+            duration_hours: durationHours,
+            session_date: sessionDate,
+            payment_method: paymentMethod
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closePaymentModal();
+            showPaymentStatus(data, 'pending');
+            
+            // If M-Pesa, redirect to payment URL
+            if (paymentMethod === 'mpesa' && data.payment_url) {
+                window.open(data.payment_url, '_blank');
+            }
+        } else {
+            alert(data.error || 'Payment failed. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('Payment error:', error);
+        alert('Payment failed. Please try again.');
+    })
+    .finally(() => {
+        // Reset button
+        payButton.innerHTML = originalText;
+        payButton.disabled = false;
+    });
+}
+
+function showPaymentStatus(paymentData, status) {
+    const modal = document.getElementById('paymentStatusModal');
+    const content = document.getElementById('paymentStatusContent');
+    
+    let statusHtml = '';
+    
+    if (status === 'pending') {
+        statusHtml = `
+            <div class="payment-status pending">
+                <i class="fas fa-clock"></i>
+                <h3>Payment Pending</h3>
+                <p>Your payment is being processed. Please complete the payment to confirm your session.</p>
+                <div class="payment-amount">
+                    <div class="amount">KES ${paymentData.amount}</div>
+                    <div class="currency">Total Amount</div>
+                </div>
+                <button class="btn btn-primary" onclick="checkPaymentStatus(${paymentData.payment_id})">
+                    <i class="fas fa-sync-alt"></i>
+                    Check Status
+                </button>
+            </div>
+        `;
+    } else if (status === 'completed') {
+        statusHtml = `
+            <div class="payment-status success">
+                <i class="fas fa-check-circle"></i>
+                <h3>Payment Successful!</h3>
+                <p>Your tutoring session has been confirmed. The tutor will contact you soon.</p>
+                <div class="payment-amount">
+                    <div class="amount">KES ${paymentData.amount}</div>
+                    <div class="currency">Amount Paid</div>
+                </div>
+                <button class="btn btn-primary" onclick="closePaymentStatusModal()">Done</button>
+            </div>
+        `;
+    } else if (status === 'failed') {
+        statusHtml = `
+            <div class="payment-status failed">
+                <i class="fas fa-times-circle"></i>
+                <h3>Payment Failed</h3>
+                <p>Your payment could not be processed. Please try again or contact support.</p>
+                <div class="payment-amount">
+                    <div class="amount">KES ${paymentData.amount}</div>
+                    <div class="currency">Amount</div>
+                </div>
+                <button class="btn btn-primary" onclick="closePaymentStatusModal()">Try Again</button>
+            </div>
+        `;
+    }
+    
+    content.innerHTML = statusHtml;
+    modal.style.display = 'block';
+}
+
+function closePaymentStatusModal() {
+    document.getElementById('paymentStatusModal').style.display = 'none';
+}
+
+function checkPaymentStatus(paymentId) {
+    fetch(`/api/payments/status/${paymentId}`)
+        .then(response => response.json())
+        .then(data => {
+            showPaymentStatus(data, data.status);
+        })
+        .catch(error => {
+            console.error('Error checking payment status:', error);
+            alert('Error checking payment status. Please try again.');
+        });
 }

@@ -135,6 +135,76 @@
         </div>
     </div>
 
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content payment-modal">
+            <span class="close" onclick="closePaymentModal()">&times;</span>
+            <div class="payment-header">
+                <h2><i class="fas fa-credit-card"></i> Book Tutoring Session</h2>
+                <p>Complete your payment to schedule your session</p>
+            </div>
+            
+            <div class="payment-form">
+                <div class="form-group">
+                    <label for="sessionDate">Session Date & Time</label>
+                    <input type="datetime-local" id="sessionDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="durationHours">Duration (hours)</label>
+                    <select id="durationHours" onchange="calculateTotal()">
+                        <option value="1">1 hour</option>
+                        <option value="1.5">1.5 hours</option>
+                        <option value="2">2 hours</option>
+                        <option value="2.5">2.5 hours</option>
+                        <option value="3">3 hours</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="totalAmount">Total Amount (KES)</label>
+                    <input type="text" id="totalAmount" readonly>
+                </div>
+                
+                <div class="payment-methods">
+                    <h3>Payment Method</h3>
+                    <div class="payment-option">
+                        <input type="radio" id="mpesa" name="paymentMethod" value="mpesa" checked>
+                        <label for="mpesa">
+                            <i class="fas fa-mobile-alt"></i>
+                            M-Pesa Mobile Money
+                        </label>
+                    </div>
+                    <div class="payment-option">
+                        <input type="radio" id="card" name="paymentMethod" value="card">
+                        <label for="card">
+                            <i class="fas fa-credit-card"></i>
+                            Credit/Debit Card
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="payment-actions">
+                    <button class="btn btn-outline" onclick="closePaymentModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="processPayment()">
+                        <i class="fas fa-lock"></i>
+                        Pay Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Status Modal -->
+    <div id="paymentStatusModal" class="modal">
+        <div class="modal-content status-modal">
+            <span class="close" onclick="closePaymentStatusModal()">&times;</span>
+            <div id="paymentStatusContent">
+                <!-- Payment status will be loaded here -->
+            </div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/student_dashboard.js') }}"></script>
 </body>
 </html>
