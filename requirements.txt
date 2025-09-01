@@ -10,6 +10,6 @@ numpy==1.24.3
 sentence-transformers==2.2.2
 torch==2.0.1
 transformers==4.35.0
-git+https://github.com/IntaSend/python-sdk.git@main#egg=intasend
+intasend-python
 python-dotenv==1.0.0
 gunicorn==21.2.0
