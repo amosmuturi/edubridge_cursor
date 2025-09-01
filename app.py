@@ -263,8 +263,8 @@ def search_tutors():
             })
         
         # Get embeddings
-        query_embedding = model.encode([query])
-        tutor_embeddings = model.encode([t['text'] for t in tutor_data])
+        query_embedding = embed_text([query])
+    tutor_embeddings = embed_text([t['text'] for t in tutor_data])
         
         # Calculate similarities
         similarities = np.dot(tutor_embeddings, query_embedding.T).flatten()
