@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: edubridge-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: INTASEND_PUBLISHABLE_KEY
+        sync: false
+      - key: INTASEND_SECRET_KEY
+        sync: false
+      - key: INTASEND_API_URL
+        value: https://api.intasend.com
