@@ -587,6 +587,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
 
 from flask_migrate import Migrate
-from yourapp import app, db  # adjust import to match your structure
 
 migrate = Migrate(app, db)
