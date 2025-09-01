@@ -1,6 +1,6 @@
-pip>=24.2
-setuptools>=75.1.0
-wheel>=0.44.0
+pip>=24.0
+setuptools>=70.0.0
+wheel
 Flask==2.3.3
 Flask-SQLAlchemy==3.0.5
 Flask-Login==0.6.3
