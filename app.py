@@ -268,7 +268,7 @@ def search_tutors():
     tutors = tutors_query.all()
     
     # Semantic search if query is provided and embeddings are available
-    if query and tutor_embeddings:
+    if query:
         tutor_data = []
         for tutor in tutors:
             user = User.query.get(tutor.user_id)
@@ -316,7 +316,7 @@ def search_tutors():
         sorted_tutors = [tutor_data[i] for i in sorted_indices]
         
         result = []
-        for item in sorted_tutors:
+        for i, item in enumerate(sorted_tutors):
             tutor = item['tutor']
             user = item['user']
             result.append({
@@ -330,7 +330,7 @@ def search_tutors():
                 'bio': tutor.bio,
                 'rating': tutor.rating,
                 'total_sessions': tutor.total_sessions,
-                                 'similarity_score': float(similarities[len(result)][0])
+                'similarity_score': float(similarities[i][0]) if i < len(similarities) else 0.0
             })
     else:
         result = []
@@ -466,7 +466,8 @@ def create_payment():
         # Initialize IntaSend API
         intasend = APIService(
             publishable_key=INTASEND_PUBLISHABLE_KEY,
-            secret_key=INTASEND_SECRET_KEY
+            secret_key=INTASEND_SECRET_KEY,
+            api_url=INTASEND_API_URL
         )
         
         # Create payment record
@@ -577,7 +578,8 @@ def get_payment_status(payment_id):
         # Initialize IntaSend API
         intasend = APIService(
             publishable_key=INTASEND_PUBLISHABLE_KEY,
-            secret_key=INTASEND_SECRET_KEY
+            secret_key=INTASEND_SECRET_KEY,
+            api_url=INTASEND_API_URL
         )
         
         if payment.intasend_invoice_id:
