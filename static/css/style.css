@@ -459,13 +459,16 @@ p {
 
 .modal-content {
     background-color: white;
-    margin: 5% auto;
+    margin: 2% auto;
     padding: 2rem;
     border-radius: 15px;
     width: 90%;
     max-width: 500px;
+    max-height: 90vh;
     position: relative;
     animation: modalSlideIn 0.3s ease;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 @keyframes modalSlideIn {
@@ -497,6 +500,63 @@ p {
 /* Auth Forms */
 .auth-form {
     margin-top: 1.5rem;
+    max-height: 100%;
+}
+
+/* Ensure form groups don't cause overflow issues */
+.form-group {
+    margin-bottom: 1.5rem;
+    word-wrap: break-word;
+}
+
+/* Tutor fields styling */
+#tutorFields {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+#tutorFields .form-group:first-child {
+    margin-top: 0;
+}
+
+/* Responsive modal adjustments */
+@media (max-width: 768px) {
+    .modal-content {
+        margin: 1% auto;
+        width: 95%;
+        max-height: 95vh;
+        padding: 1.5rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 0.6rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* Custom scrollbar for modal */
+.modal-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
 }
 
 .form-group {
